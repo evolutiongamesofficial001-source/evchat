@@ -1,54 +1,62 @@
 const user = JSON.parse(localStorage.getItem("echat_user"));
-if (!user) location.href = "login.html";
+if(!user) location.href="login.html";
 
-const contactsDiv = document.getElementById("contacts");
-let contacts = JSON.parse(localStorage.getItem("echat_contacts")) || [];
+const DB =
+"https://bigtrio-ip-default-rtdb.firebaseio.com/Para/usuario/Echat";
 
-function renderContacts() {
-    contactsDiv.innerHTML = "";
+const MSG =
+"https://mensagens-1-70ee9-default-rtdb.firebaseio.com/Mensagens";
 
-    contacts.forEach(c => {
-        const div = document.createElement("div");
-        div.className = "contact";
-        div.innerHTML = `
-            <b>${c.nome}</b><br>
-            <small>${c.numero}</small>
-        `;
+let contatos = JSON.parse(localStorage.getItem("contacts"))||[];
 
-        div.onclick = () => {
-            localStorage.setItem("chat_with", JSON.stringify(c));
-            location.href = "chat.html";
-        };
-
-        contactsDiv.appendChild(div);
-    });
+function salvar(){
+ localStorage.setItem("contacts",JSON.stringify(contatos));
 }
 
-function addContact() {
-    const num = document.getElementById("addNumber").value.trim();
-    if (!num || num === user.numero) {
-        alert("Número inválido");
-        return;
+function render(){
+ list.innerHTML="";
+ contatos.forEach(c=>{
+  const d=document.createElement("div");
+  d.className="contact";
+  d.innerHTML=`<b>${c.nome}</b><br><small>${c.numero}</small>`;
+  d.onclick=()=>{
+   localStorage.setItem("chat",JSON.stringify(c));
+   location.href="chat.html";
+  };
+  list.appendChild(d);
+ });
+}
+
+function add(){
+ const n=num.value.trim();
+ if(!n||n===user.numero) return;
+
+ fetch(`${DB}/${n}.json`)
+ .then(r=>r.json())
+ .then(d=>{
+  if(!d) return alert("Não encontrado");
+  contatos.push(d);
+  salvar();
+  render();
+ });
+}
+
+function sync(){
+ fetch(`${MSG}.json`)
+ .then(r=>r.json())
+ .then(all=>{
+  if(!all) return;
+  Object.values(all).forEach(chat=>{
+   Object.values(chat).forEach(m=>{
+    if(m.from!==user.numero &&
+       !contatos.some(c=>c.numero===m.from)){
+        contatos.push({nome:m.fromName,numero:m.from});
+        salvar(); render();
     }
-
-    fetch(`https://bigtrio-ip-default-rtdb.firebaseio.com/Para/usuario/Echat/${num}.json`)
-    .then(r => r.json())
-    .then(data => {
-        if (!data) {
-            alert("Usuário não encontrado");
-            return;
-        }
-
-        if (contacts.some(c => c.numero === num)) return;
-
-        contacts.push({
-            nome: data.nome,
-            numero: num
-        });
-
-        localStorage.setItem("echat_contacts", JSON.stringify(contacts));
-        renderContacts();
-    });
+   });
+  });
+ });
 }
 
-renderContacts();
+render();
+sync();
